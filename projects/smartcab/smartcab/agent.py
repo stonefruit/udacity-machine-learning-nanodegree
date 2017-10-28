@@ -23,7 +23,7 @@ class LearningAgent(Agent):
         ## TO DO ##
         ###########
         # Set any additional class parameters as needed
-
+        self.t = 0
 
     def reset(self, destination=None, testing=False):
         """ The reset function is called at the beginning of each trial.
@@ -43,7 +43,13 @@ class LearningAgent(Agent):
             self.alpha = 0
             self.epsilon = 0
         else:
-            self.epsilon -= 0.05
+            self.t += 1
+            # self.epsilon -= 0.05
+            # self.epsilon = math.fabs(math.cos(self.alpha*self.t))
+            # self.epsilon = 1/(self.t**2)
+            # self.epsilon = self.alpha**self.t
+            self.epsilon = math.exp(-self.alpha*self.t)
+
 
         return None
 
@@ -67,7 +73,7 @@ class LearningAgent(Agent):
         # With the hand-engineered features, this learning process gets entirely negated.
 
         # Set 'state' as a tuple of relevant data for the agent
-        state = (waypoint,inputs['light'],inputs['right'],inputs['oncoming'],deadline)
+        state = (waypoint,inputs['light'],inputs['left'],inputs['right'],inputs['oncoming'])
 
         return state
 
@@ -79,9 +85,12 @@ class LearningAgent(Agent):
         ## TO DO ##
         ###########
         # Calculate the maximum Q-value of all actions for a given state
-        maxAction = max(self.Q[state], key = lambda x: self.Q[state][x])
-        maxQ = self.Q[state][maxAction]
-
+        # maxAction = max(self.Q[state], key = lambda x: self.Q[state][x])
+        # maxQ = self.Q[state][maxAction]
+        maxQ = -100.0
+        for action in self.Q[state]:
+            if maxQ < self.Q[state][action]:
+                maxQ = self.Q[state][action]
         return maxQ
 
 
@@ -95,7 +104,7 @@ class LearningAgent(Agent):
         # If it is not, create a new dictionary for that state
         #   Then, for each action available, set the initial Q-value to 0.0
         if state not in self.Q:
-            self.Q[state] = {'left': 0, 'right':0, 'forward': 0, None: 0}
+            self.Q[state] = {'left': 0.0, 'right':0.0, 'forward': 0.0, None: 0.0}
 
 
         return
@@ -120,7 +129,6 @@ class LearningAgent(Agent):
             for key, value in self.Q[state].items():
                 if value == maxVal:
                     pos_actions.append(key)
-            # pos_actions = [act for act in pos_actions if pos_actions[act] == maxVal]
             action = random.choice(pos_actions)
         else:
             action = random.choice(self.valid_actions)
@@ -140,9 +148,8 @@ class LearningAgent(Agent):
         ###########
         # When learning, implement the value iteration update rule
         #   Use only the learning rate 'alpha' (do not use the discount factor 'gamma')
-        prev_value = self.Q[state][action]
         if self.learning:
-            self.Q[state][action] = (1-self.alpha)*prev_value + self.alpha*(reward)
+            self.Q[state][action] = self.Q[state][action] + self.alpha*(reward-self.Q[state][action])
 
         return
 
@@ -179,7 +186,7 @@ def run():
     #   learning   - set to True to force the driving agent to use Q-learning
     #    * epsilon - continuous value for the exploration factor, default is 1
     #    * alpha   - continuous value for the learning rate, default is 0.5
-    agent = env.create_agent(LearningAgent, learning=True)
+    agent = env.create_agent(LearningAgent, learning=True, alpha=0.001)
 
     ##############
     # Follow the driving agent
@@ -194,14 +201,14 @@ def run():
     #   display      - set to False to disable the GUI if PyGame is enabled
     #   log_metrics  - set to True to log trial and simulation results to /logs
     #   optimized    - set to True to change the default log file name
-    sim = Simulator(env, update_delay=0.01, log_metrics=True, display=False)
+    sim = Simulator(env, update_delay=0.01, log_metrics=True, display=False, optimized=True)
 
     ##############
     # Run the simulator
     # Flags:
     #   tolerance  - epsilon tolerance before beginning testing, default is 0.05
     #   n_test     - discrete number of testing trials to perform, default is 0
-    sim.run(n_test=10)
+    sim.run(n_test=100, tolerance=0.0001)
 
 
 if __name__ == '__main__':
